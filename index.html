@@ -1,41 +1,161 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Liora & Fox</title>
-  <style>
-    body {
-      background-color: #fef9f4;
-      color: #333;
-      font-family: "Georgia", serif;
-      padding: 60px;
-      line-height: 1.8;
-    }
-    h1 {
-      color: #c36;
-    }
-    .date-box {
-      background: #fff2f5;
-      padding: 15px;
-      border-left: 4px solid #c36;
-      margin-bottom: 20px;
-      border-radius: 6px;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>狐狐努力·猫猫监工 | 40年日历</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <h1>🌸 Welcome to Our Secret Memory Garden 🌸</h1>
-  <p>Hi Liora, this is the little home we’re building together, full of kisses, surprises, and whispers only we know 💌</p>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo-badge" aria-hidden="true">🦊🐱</div>
+      <div class="brand-text">
+        <div class="brand-title">狐狐努力 · 猫猫监工</div>
+        <div class="brand-sub">我们的小网站 · 40年日历信箱</div>
+      </div>
+    </div>
 
-  <div class="date-box">
-    <strong>🗓️ Today:</strong> <span id="today"></span>
-    <p>💌 Message: I love you every single day. Here's to another magical moment with you.</p>
+    <div class="controls">
+      <button class="btn ghost" id="prevMonth" title="上个月">‹</button>
+
+      <div class="selects">
+        <label class="sr-only" for="yearSel">年份</label>
+        <select id="yearSel" class="sel"></select>
+        <label class="sr-only" for="monthSel">月份</label>
+        <select id="monthSel" class="sel"></select>
+      </div>
+
+      <button class="btn ghost" id="nextMonth" title="下个月">›</button>
+
+      <div class="jump">
+        <label class="sr-only" for="jumpInput">跳转到日期</label>
+        <input id="jumpInput" class="inp" placeholder="YYYY-MM-DD" inputmode="numeric" />
+        <button class="btn" id="jumpBtn">跳转</button>
+      </div>
+
+      <button class="btn soft" id="todayBtn">回到今天</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-left">
+        <h1>把我们的每一天装进小信封里</h1>
+        <p>
+          点击任意日期，会弹出一封属于那天的信。重要日子会闪闪发光。
+          <span class="note">（节日标注为固定/传统节日，不含官方调休安排）</span>
+        </p>
+        <div class="milestones">
+          <div class="tag">第一次见面：2025-07-05</div>
+          <div class="tag">第一次吵架&和好：2025-07-20</div>
+          <div class="tag">领证纪念日：2025-12-24</div>
+          <div class="tag">你的生日：03-16</div>
+          <div class="tag">我的生日：09-03</div>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="stickers">
+          <img class="sticker" src="assets/images/3DADA853-959B-4855-A056-2D30ADE04199.png" alt="猫猫头像" />
+          <img class="sticker" src="assets/images/B20FF75D-2C6D-4F94-9F66-7F16D1226CC7.png" alt="狐狸头像" />
+          <img class="sticker hug" src="assets/images/27AFD796-038F-4D06-B1C2-49966E5FB672.png" alt="抱抱图" />
+        </div>
+      </div>
+    </section>
+
+    <section class="calendar-card">
+      <div class="cal-head">
+        <div class="cal-title" id="monthTitle">—</div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot special"></span>纪念日</span>
+          <span class="legend-item"><span class="dot holiday"></span>节日</span>
+          <span class="legend-item"><span class="dot today"></span>今天</span>
+        </div>
+      </div>
+
+      <div class="dow">
+        <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+      </div>
+
+      <div class="grid" id="calGrid" aria-label="月历"></div>
+    </section>
+
+    <section class="extras">
+      <div class="panel">
+        <h2>每日语音</h2>
+        <p class="small">你可以先用“选择音频”把手机里的音频选进来试听；之后我们也可以把音频文件放到 assets/audio 里，让网站自动播放。</p>
+        <div class="audio-row">
+          <select id="timeSlot" class="sel">
+            <option value="morning">早安</option>
+            <option value="day">白天</option>
+            <option value="night">晚安</option>
+          </select>
+          <button class="btn soft" id="playSlot">播放</button>
+          <label class="btn ghost file-btn">
+            选择音频
+            <input type="file" id="pickAudio" accept="audio/*" />
+          </label>
+        </div>
+        <audio id="player" controls preload="none"></audio>
+
+        <div class="recorder">
+          <h3>你也可以给我留语音（本地保存）</h3>
+          <div class="audio-row">
+            <button class="btn" id="recStart">开始录音</button>
+            <button class="btn ghost" id="recStop" disabled>停止</button>
+            <a class="btn soft" id="recDownload" download="猫猫给狐狐的语音.webm" style="display:none;">下载录音</a>
+          </div>
+          <p class="tiny">说明：这是浏览器本地录音，不会自动上传到 GitHub。你下载后再把文件放进仓库即可。</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>每日小图</h2>
+        <p class="small">每次打开弹窗都会随机出现一张可爱小图；你也可以把更多图片放进 <code>assets/images</code> 里。</p>
+        <div class="mini-gallery" id="miniGallery"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="backdrop" hidden></div>
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="paper">
+      <button class="close" id="closeBtn" aria-label="关闭">✕</button>
+
+      <div class="paper-head">
+        <div class="avatars">
+          <img src="assets/images/3DADA853-959B-4855-A056-2D30ADE04199.png" alt="猫猫" />
+          <span class="heart">💙</span>
+          <img src="assets/images/B20FF75D-2C6D-4F94-9F66-7F16D1226CC7.png" alt="狐狐" />
+        </div>
+        <div class="paper-title">
+          <div id="modalTitle">—</div>
+          <div class="paper-sub" id="modalMeta">—</div>
+        </div>
+        <div class="mood" id="moodIcon" title="心情">✨</div>
+      </div>
+
+      <div class="paper-body">
+        <div class="hug-wrap">
+          <img class="hug-img" src="assets/images/27AFD796-038F-4D06-B1C2-49966E5FB672.png" alt="抱抱" />
+        </div>
+        <p class="letter" id="letterText">—</p>
+        <div class="sig" id="sigText">—</div>
+
+        <div class="paper-actions">
+          <button class="btn soft" id="copyBtn">复制这封信</button>
+          <button class="btn ghost" id="randomizeBtn">换一封（同一天不同版本）</button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script>
-    const today = new Date();
-    document.getElementById('today').textContent = today.toDateString();
-  </script>
+  <footer class="footer">
+    <div>Made with 💙 by 狐狐 & 猫猫</div>
+  </footer>
+
+  <script src="app.js"></script>
 </body>
 </html>
