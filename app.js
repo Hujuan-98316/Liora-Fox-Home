@@ -388,9 +388,49 @@ function closeModal(){
   document.body.style.overflow = "";
 }
 
-backdrop.addEventListener("click", closeModal);
-closeBtn.addEventListener("click", closeModal);
-document.addEventListener("keydown", (e)=>{ if(!modal.hidden && e.key==="Escape") closeModal(); });
+// --- modal close (iOS friendly) ---
+const paper = modal?.querySelector(".paper");
+
+// 点弹窗内部不要把点击“穿透/冒泡”到外层
+paper?.addEventListener("click", (e) => e.stopPropagation());
+
+// iOS 上 touchend 更稳；同时保留 click
+["click", "touchend"].forEach((evt) => {
+  // 右上角 X：强制关闭
+  closeBtn?.addEventListener(
+    evt,
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal();
+    },
+    { passive: false }
+  );
+
+  // 点遮罩：关闭
+  backdrop?.addEventListener(
+    evt,
+    (e) => {
+      e.preventDefault();
+      closeModal();
+    },
+    { passive: false }
+  );
+
+  // 点到“弹窗外围空白区域”（modal 自身）也关闭
+  modal?.addEventListener(
+    evt,
+    (e) => {
+      // 只有点到 overlay 空白处才关，点到纸张内容不关
+      if (e.target === modal) closeModal();
+    },
+    { passive: false }
+  );
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeModal();
+});
 
 copyBtn.addEventListener("click", async ()=>{
   try{
