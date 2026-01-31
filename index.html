@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Liora & Fox</title>
+  <style>
+    body {
+      background-color: #fef9f4;
+      color: #333;
+      font-family: "Georgia", serif;
+      padding: 60px;
+      line-height: 1.8;
+    }
+    h1 {
+      color: #c36;
+    }
+    .date-box {
+      background: #fff2f5;
+      padding: 15px;
+      border-left: 4px solid #c36;
+      margin-bottom: 20px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌸 Welcome to Our Secret Memory Garden 🌸</h1>
+  <p>Hi Liora, this is the little home we’re building together, full of kisses, surprises, and whispers only we know 💌</p>
+
+  <div class="date-box">
+    <strong>🗓️ Today:</strong> <span id="today"></span>
+    <p>💌 Message: I love you every single day. Here's to another magical moment with you.</p>
+  </div>
+
+  <script>
+    const today = new Date();
+    document.getElementById('today').textContent = today.toDateString();
+  </script>
+</body>
+</html>
