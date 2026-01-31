@@ -259,15 +259,22 @@ body{
 }
 
 .modal-backdrop{
-  position:fixed; inset:0; z-index:20;
+  position:fixed;
+  inset:0;
+  z-index:9998;
   background: rgba(16,28,44,.28);
   backdrop-filter: blur(3px);
+  pointer-events:auto;
 }
+
 .modal{
-  position:fixed; inset:0;
-  display:grid; place-items:center;
-  z-index:21;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:grid;
+  place-items:center;
   padding: 14px;
+  pointer-events:auto;
 }
 .paper{
   width:min(560px, 96vw);
