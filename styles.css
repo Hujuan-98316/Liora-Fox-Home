@@ -265,12 +265,17 @@ audio{width:100%; margin-top:10px}
 }
 @keyframes modalIn{from{transform: translateY(10px); opacity:.5}to{transform: translateY(0); opacity:1}}
 .close{
-  position:absolute; right:12px; top:12px;
-  width:42px;height:42px;border-radius:14px;
-  border:1px solid rgba(231,241,255,.9);
-  background: rgba(255,255,255,.9);
+  position:absolute;
+  right:12px;
+  top:10px;
+  width:38px;
+  height:38px;
+  border-radius:14px;
+  border:1px solid #e6f3ff;
+  background:#ffffff;
+  font-size:20px;
   cursor:pointer;
-  font-weight:900;
+  z-index: 50;
 }
 .paper-head{
   display:flex; align-items:center; justify-content:space-between;
