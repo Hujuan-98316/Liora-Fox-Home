@@ -265,7 +265,7 @@ audio{width:100%; margin-top:10px}
 }
 @keyframes modalIn{from{transform: translateY(10px); opacity:.5}to{transform: translateY(0); opacity:1}}
 .close{
-  position:absolute;
+  position: absolute;
   right:12px;
   top:10px;
   width:38px;
@@ -277,10 +277,14 @@ audio{width:100%; margin-top:10px}
   cursor:pointer;
   z-index: 50;
 }
+
 .paper-head{
-  display:flex; align-items:center; justify-content:space-between;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
   gap:10px;
-  padding: 18px 16px 10px;
+  padding:18px 16px 10px;
+  z-index: 1;
 }
 .avatars{display:flex; gap:8px; align-items:center;}
 .avatars img{
