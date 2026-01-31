@@ -265,7 +265,8 @@ audio{width:100%; margin-top:10px}
 }
 @keyframes modalIn{from{transform: translateY(10px); opacity:.5}to{transform: translateY(0); opacity:1}}
 .close{
-  position: absolute;
+  pointer-events:auto;
+  position:absolute;
   right:12px;
   top:10px;
   width:38px;
@@ -275,7 +276,7 @@ audio{width:100%; margin-top:10px}
   background:#ffffff;
   font-size:20px;
   cursor:pointer;
-  z-index: 50;
+  z-index:50;
 }
 
 .paper-head{
