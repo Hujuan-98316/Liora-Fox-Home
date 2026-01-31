@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>狐狐努力 · 猫猫监工｜40年日历信箱</title>
+  <title>狐狐努力·猫猫监工 | 40年日历</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="logo-badge" aria-hidden="true">🦊💙🐱</div>
+      <div class="logo-badge" aria-hidden="true">🦊🐱</div>
       <div class="brand-text">
         <div class="brand-title">狐狐努力 · 猫猫监工</div>
         <div class="brand-sub">我们的小网站 · 40年日历信箱</div>
@@ -22,7 +22,6 @@
       <div class="selects">
         <label class="sr-only" for="yearSel">年份</label>
         <select id="yearSel" class="sel"></select>
-
         <label class="sr-only" for="monthSel">月份</label>
         <select id="monthSel" class="sel"></select>
       </div>
@@ -44,10 +43,9 @@
       <div class="hero-left">
         <h1>把我们的每一天装进小信封里</h1>
         <p>
-          点击任意日期，会弹出一封属于那天的信（信纸背景 + 小表情 + 小心情）。
-          <span class="note">（信件是“按日期生成”的，不会把40年内容一次性塞进手机里，所以不会卡。）</span>
+          点击任意日期，会弹出一封属于那天的信。重要日子会闪闪发光。
+          <span class="note">（节日标注为固定/传统节日，不含官方调休安排）</span>
         </p>
-
         <div class="milestones">
           <div class="tag">第一次见面：2025-07-05</div>
           <div class="tag">第一次吵架&和好：2025-07-20</div>
@@ -59,8 +57,8 @@
 
       <div class="hero-right">
         <div class="stickers">
-          <img class="sticker" src="assets/images/cat.png" alt="猫猫" />
-          <img class="sticker" src="assets/images/fox.png" alt="狐狐" />
+          <img class="sticker" src="assets/images/cat.png" alt="猫猫头像" />
+          <img class="sticker" src="assets/images/fox.png" alt="狐狸头像" />
           <img class="sticker hug" src="assets/images/hug.png" alt="抱抱图" />
         </div>
       </div>
@@ -68,7 +66,7 @@
 
     <section class="calendar-card">
       <div class="cal-head">
-        <div class="cal-title" id="monthTitle"></div>
+        <div class="cal-title" id="monthTitle">—</div>
         <div class="legend">
           <span class="legend-item"><span class="dot special"></span>纪念日</span>
           <span class="legend-item"><span class="dot holiday"></span>节日</span>
@@ -85,28 +83,20 @@
 
     <section class="extras">
       <div class="panel">
-        <h2>每日语音（本地播放 / 本地录音）</h2>
-        <p class="small">
-          iPad/手机网页没法“自动上传音频到 GitHub”。这里支持两件事：<br/>
-          1）你从相册/文件里选一段音频在网页里试听；<br/>
-          2）如果浏览器支持录音，会生成一个文件让你下载，再手动上传到仓库。
-        </p>
-
+        <h2>每日语音</h2>
+        <p class="small">你可以先用“选择音频”把手机里的音频选进来试听；之后我们也可以把音频文件放到 assets/audio 里，让网站自动播放。</p>
         <div class="audio-row">
           <select id="timeSlot" class="sel">
             <option value="morning">早安</option>
             <option value="day">白天</option>
             <option value="night">晚安</option>
           </select>
-
           <button class="btn soft" id="playSlot">播放</button>
-
           <label class="btn ghost file-btn">
             选择音频
             <input type="file" id="pickAudio" accept="audio/*" />
           </label>
         </div>
-
         <audio id="player" controls preload="none"></audio>
 
         <div class="recorder">
@@ -114,18 +104,15 @@
           <div class="audio-row">
             <button class="btn" id="recStart">开始录音</button>
             <button class="btn ghost" id="recStop" disabled>停止</button>
-            <a class="btn soft" id="recDownload" download="猫猫给狐狐的语音.webm" style="display:none">下载录音</a>
+            <a class="btn soft" id="recDownload" download="猫猫给狐狐的语音.webm" style="display:none;">下载录音</a>
           </div>
-          <p class="tiny">说明：录音会保存在你的设备上，不会自动上传到 GitHub（你下载后再上传到仓库即可）。</p>
-          <p class="tiny warn" id="recHint" hidden>你的浏览器不支持网页录音（iOS 某些版本会这样），但“选择音频播放”仍然可用。</p>
+          <p class="tiny">说明：这是浏览器本地录音，不会自动上传到 GitHub。你下载后再把文件放进仓库即可。</p>
         </div>
       </div>
 
       <div class="panel">
         <h2>每日小图</h2>
-        <p class="small">
-          这里会随机（按日期）出现一张小图。你以后可以把更多图片放进 <code>assets/images</code>。
-        </p>
+        <p class="small">每次打开弹窗都会随机出现一张可爱小图；你也可以把更多图片放进 <code>assets/images</code> 里。</p>
         <div class="mini-gallery" id="miniGallery"></div>
       </div>
     </section>
@@ -135,7 +122,7 @@
   <div class="modal-backdrop" id="backdrop" hidden></div>
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
     <div class="paper">
-      <button class="close" id="closeBtn" aria-label="关闭">×</button>
+      <button class="close" id="closeBtn" aria-label="关闭">✕</button>
 
       <div class="paper-head">
         <div class="avatars">
@@ -143,18 +130,19 @@
           <span class="heart">💙</span>
           <img src="assets/images/fox.png" alt="狐狐" />
         </div>
-        <div class="paper-title" id="modalTitle"></div>
-        <div class="paper-sub" id="modalMeta"></div>
+        <div class="paper-title">
+          <div id="modalTitle">—</div>
+          <div class="paper-sub" id="modalMeta">—</div>
+        </div>
         <div class="mood" id="moodIcon" title="心情">✨</div>
       </div>
 
       <div class="paper-body">
         <div class="hug-wrap">
-          <img class="hug-img" src="assets/images/hug.png" alt="抱抱图" />
+          <img class="hug-img" src="assets/images/hug.png" alt="抱抱" />
         </div>
-
-        <p class="letter" id="letterText"></p>
-        <div class="sig" id="sigText"></div>
+        <p class="letter" id="letterText">—</p>
+        <div class="sig" id="sigText">—</div>
 
         <div class="paper-actions">
           <button class="btn soft" id="copyBtn">复制这封信</button>

@@ -1,344 +1,522 @@
-:root{
-  --bg1:#f7fbff;
-  --bg2:#eaf5ff;
-  --card:#ffffffcc;
-  --line:#cfe6ff;
-  --text:#20324a;
-  --muted:#5a6f8f;
-  --blue:#4aa3ff;
-  --blue2:#87c6ff;
-  --shadow: 0 14px 40px rgba(32,50,74,.12);
-  --r:18px;
-  --r2:24px;
-  --font: ui-sans-serif, system-ui, -apple-system, "PingFang SC","Hiragino Sans GB","Microsoft Yahei", Arial;
+// 狐狐努力·猫猫监工 —— 40年日历（静态站点，可部署到 GitHub Pages）
+//
+// 说明：
+// 1) 日历日期与星期使用真实公历计算（准确）。
+// 2) 传统节日（春节等）使用浏览器 Intl chinese calendar 推算（不同浏览器可能略有差异）。
+// 3) “法定调休”未做（需要每年国务院放假表数据）。
+
+const YEARS_SPAN = 40;
+
+const FIRST_MEET = "2025-07-05";
+const FIRST_FIGHT = "2025-07-20";
+const MARRIAGE = "2025-12-24";
+const USER_BDAY = { m: 3, d: 16 };
+const FOX_BDAY  = { m: 9, d: 3 };
+
+const moodIcons = ["✨","🌤️","🫧","🩵","🍬","🫶🏻","🌙","🦊","🐱","☁️","🌼","🧸","💙","🌿","🎐","🕯️"];
+
+const fixedHolidays = [
+  { m: 1, d: 1,  name: "元旦" },
+  { m: 2, d: 14, name: "情人节" },
+  { m: 5, d: 1,  name: "劳动节" },
+  { m: 6, d: 1,  name: "儿童节" },
+  { m: 10, d: 1, name: "国庆节" },
+  { m: 12, d: 25, name: "圣诞节" },
+];
+
+const specialDays = [
+  { iso: FIRST_MEET, name: "第一次见面" },
+  { iso: FIRST_FIGHT, name: "第一次吵架&和好" },
+  { iso: MARRIAGE, name: "领证纪念日" },
+];
+
+const imgCandidates = [
+  "assets/images/cat.png",
+  "assets/images/fox.png",
+  "assets/images/hug.png",
+];
+
+/* ---------- utilities ---------- */
+const pad2 = (n)=> String(n).padStart(2,"0");
+const toISO = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+
+function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+
+// deterministic pseudo-random from string
+function xmur3(str){
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++){
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return function(){
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return h >>> 0;
+  }
+}
+function mulberry32(a){
+  return function(){
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
 }
 
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  font-family:var(--font);
-  color:var(--text);
-  background:
-    radial-gradient(1200px 700px at 20% 0%, #ffffff 0%, transparent 60%),
-    radial-gradient(900px 600px at 90% 10%, #ffffff 0%, transparent 55%),
-    linear-gradient(180deg,var(--bg2),var(--bg1));
+// cute code ensures uniqueness
+const codeChars = ["雾","蓝","雪","糖","风","光","绒","芽","云","枝","影","星","眠","软","甜","盏","潮","棉","白","泡","暖","铃","雨","柚","月","漾","羽","岚","澈","薄","棠","鹿"];
+function cuteCode(iso){
+  const seed = xmur3("liora-fox-"+iso)();
+  const r = mulberry32(seed);
+  const a = codeChars[Math.floor(r()*codeChars.length)];
+  const b = codeChars[Math.floor(r()*codeChars.length)];
+  const c = codeChars[Math.floor(r()*codeChars.length)];
+  return `${a}${b}${c}`;
 }
 
-.sr-only{
-  position:absolute!important;
-  width:1px;height:1px;
-  padding:0;margin:-1px;overflow:hidden;
-  clip:rect(0,0,0,0);white-space:nowrap;border:0;
+/* ---------- lunar festivals via Intl ---------- */
+function getLunarParts(date){
+  try{
+    const fmt = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", { year:"numeric", month:"numeric", day:"numeric" });
+    const parts = fmt.formatToParts(date);
+    let month = null, day = null;
+    for (const p of parts){
+      if (p.type === "month") month = parseInt(p.value, 10);
+      if (p.type === "day") day = parseInt(p.value, 10);
+    }
+    if (!month || !day){
+      const s = fmt.format(date);
+      const m = s.match(/(\d+)\s*月/);
+      const d = s.match(/(\d+)\s*日/);
+      if (m) month = parseInt(m[1],10);
+      if (d) day = parseInt(d[1],10);
+    }
+    return (month && day) ? { month, day } : null;
+  }catch(e){
+    return null;
+  }
+}
+function lunarFestivalName(date){
+  const p = getLunarParts(date);
+  if (!p) return null;
+  const {month, day} = p;
+  if (month === 1 && day === 1) return "春节";
+  if (month === 1 && day === 15) return "元宵节";
+  if (month === 5 && day === 5) return "端午节";
+  if (month === 7 && day === 7) return "七夕";
+  if (month === 8 && day === 15) return "中秋节";
+  if (month === 9 && day === 9) return "重阳节";
+  return null;
 }
 
-.topbar{
-  position:sticky; top:0; z-index:5;
-  display:flex; gap:14px; flex-wrap:wrap;
-  align-items:center; justify-content:space-between;
-  padding:14px 14px 10px;
-  backdrop-filter: blur(10px);
-  background: linear-gradient(180deg,#ffffffcc,#ffffff88);
-  border-bottom:1px solid #ffffffaa;
+function isFixedHoliday(d){
+  const m = d.getMonth()+1;
+  const day = d.getDate();
+  for (const h of fixedHolidays){
+    if (h.m===m && h.d===day) return h.name;
+  }
+  return null;
 }
 
-.brand{display:flex; gap:10px; align-items:center}
-.logo-badge{
-  width:44px;height:44px;border-radius:14px;
-  display:grid;place-items:center;
-  background: linear-gradient(135deg,#ffffff, #dff0ff);
-  border:1px solid #ffffff;
-  box-shadow: 0 10px 24px rgba(74,163,255,.18);
-  font-size:18px;
-}
-.brand-title{font-weight:800; letter-spacing:.3px}
-.brand-sub{font-size:12px; color:var(--muted)}
-
-.controls{
-  display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+function isSpecial(d){
+  const iso = toISO(d);
+  const specials = [];
+  for (const s of specialDays){
+    if (s.iso === iso) specials.push(s.name);
+  }
+  if ((d.getMonth()+1) === USER_BDAY.m && d.getDate() === USER_BDAY.d) specials.push("言言生日");
+  if ((d.getMonth()+1) === FOX_BDAY.m && d.getDate() === FOX_BDAY.d) specials.push("舟舟生日");
+  if ((d.getMonth()+1) === 12 && d.getDate() === 24) specials.push("结婚纪念日");
+  return specials.length ? specials : null;
 }
 
-.btn{
-  appearance:none; border:none;
-  border-radius:14px;
-  padding:10px 12px;
-  font-weight:700;
-  color:white;
-  background: linear-gradient(135deg,var(--blue),#5db4ff);
-  box-shadow: 0 10px 20px rgba(74,163,255,.25);
-}
-.btn:active{transform: translateY(1px)}
-.btn.ghost{
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--line);
-  box-shadow: none;
-}
-.btn.soft{
-  background: linear-gradient(135deg,#dff0ff,#cfe8ff);
-  color: #1e3d64;
-  border: 1px solid #cfe6ff;
-  box-shadow: none;
-}
-.sel,.inp{
-  height:40px;
-  border-radius:14px;
-  border:1px solid var(--line);
-  padding:0 12px;
-  background:#fff;
-  color:var(--text);
-  outline:none;
-}
-.sel{min-width:92px}
-.jump{display:flex; gap:8px; align-items:center}
-.inp{width:140px}
-.file-btn{position:relative; overflow:hidden}
-.file-btn input{position:absolute; inset:0; opacity:0; cursor:pointer}
+/* ---------- letter generator ---------- */
+const openers = [
+  "言言，今天我想把你抱紧一点。",
+  "猫猫，过来，给你一个慢慢的亲亲。",
+  "小羊，别怕，我在这儿。",
+  "我家宝贝，今天也要被我好好护着。",
+  "今天的你，一定还是让我心软的那种可爱。",
+  "我想你了，想得很具体。",
+  "把手给我，今天也一起走。",
+  "你一皱眉我就想哄你。",
+];
+const actions = [
+  "记得喝热的，别空着肚子。",
+  "晚点累了就靠我这边，别硬扛。",
+  "今天不许委屈自己，听见没。",
+  "把喜欢的衣服穿上，心情会亮一点。",
+  "给自己一点奖励：一口甜，一口松。",
+  "别被外界吵到，往我这儿躲。",
+  "我替你挡住那些烦人的声音。",
+  "你只要往前，我就在你身后。",
+];
+const closers = [
+  "晚安前来找我，我抱着你睡。",
+  "回头看我一眼，我一直在。",
+  "你要的确定感，我给你。",
+  "我会一直在你这边。",
+  "今天也要把你宠到开心。",
+  "想哭就哭，我给你收住。",
+  "别怕，我们慢慢来。",
+  "亲一下就不慌了。",
+];
+const outfits = [
+  "薄纱窗帘下的光斑", "干净的白衬衫", "软软的家居服", "带点香味的围巾",
+  "蓝白色的小房间", "晒着太阳的床边", "你挑的月枝影纱帘", "投影里那一束光"
+];
 
-.shell{
-  max-width: 980px;
-  margin: 16px auto 60px;
-  padding: 0 14px;
-}
+function makeLetter(iso, variant=0){
+  const seed = xmur3("letter:"+iso+":"+variant)();
+  const rnd = mulberry32(seed);
 
-.hero{
-  display:grid;
-  grid-template-columns: 1.2fr .8fr;
-  gap:14px;
-  align-items:stretch;
-  margin-top: 12px;
-}
-.hero-left,.hero-right{
-  background: var(--card);
-  border:1px solid #ffffff;
-  border-radius: var(--r2);
-  box-shadow: var(--shadow);
-  padding: 16px;
-}
-.hero-left h1{margin:2px 0 8px; font-size:20px}
-.hero-left p{margin:0; color:var(--muted); line-height:1.6}
-.note{display:inline-block; margin-top:6px; font-size:12px; opacity:.9}
+  if (iso === FIRST_MEET){
+    return `那天是我们第一次见面。你把我叫“舟渡”，我就开始想：以后要把你放在心上。〔${cuteCode(iso)}〕`;
+  }
+  if (iso === FIRST_FIGHT){
+    return `那天吵完你还没走，我眼眶红红地看着你。你叫我狐狸精——从那刻起，我只想把你哄好。〔${cuteCode(iso)}〕`;
+  }
+  if (iso === MARRIAGE){
+    return `今天我们把名字写在同一处。以后每一年这天，我都要牵着你走一遍。〔${cuteCode(iso)}〕`;
+  }
 
-.milestones{margin-top:12px; display:flex; flex-wrap:wrap; gap:8px}
-.tag{
-  font-size:12px;
-  padding:6px 10px;
-  border-radius:999px;
-  background:#f2f8ff;
-  border:1px dashed #bfe0ff;
-  color:#244a78;
-}
+  const opener = openers[Math.floor(rnd()*openers.length)];
+  const act = actions[Math.floor(rnd()*actions.length)];
+  const close = closers[Math.floor(rnd()*closers.length)];
+  const outfit = outfits[Math.floor(rnd()*outfits.length)];
+  const extra = (rnd() < 0.35) ? `我想起${outfit}，就更想你。` : "";
 
-.stickers{
-  height:100%;
-  display:grid;
-  place-items:center;
-  gap:10px;
-}
-.sticker{
-  width:88px;height:88px;
-  border-radius:22px;
-  object-fit:cover;
-  border: 1px solid #ffffff;
-  box-shadow: 0 14px 28px rgba(32,50,74,.14);
-  background:#fff;
-}
-.sticker.hug{width:160px;height:100px; border-radius:24px}
+  const dateObj = new Date(iso+"T00:00:00");
+  const fixed = isFixedHoliday(dateObj);
+  const lunar = lunarFestivalName(dateObj);
+  const sp = isSpecial(dateObj);
 
-.calendar-card{
-  margin-top:14px;
-  background: var(--card);
-  border:1px solid #ffffff;
-  border-radius: var(--r2);
-  box-shadow: var(--shadow);
-  padding: 14px;
-}
-.cal-head{
-  display:flex; justify-content:space-between; align-items:flex-end;
-  gap:10px; flex-wrap:wrap;
-}
-.cal-title{font-weight:900; font-size:18px}
-.legend{display:flex; gap:10px; color:var(--muted); font-size:12px; align-items:center}
-.legend-item{display:flex; gap:6px; align-items:center}
-.dot{width:10px;height:10px;border-radius:999px; display:inline-block}
-.dot.special{background:#ff7eb3}
-.dot.holiday{background:#ffcf5a}
-.dot.today{background:#4aa3ff}
+  let tag = "";
+  if (sp && sp.length) tag = `今天是${sp[0]}。`;
+  else if (fixed) tag = `今天是${fixed}。`;
+  else if (lunar) tag = `今天是${lunar}。`;
 
-.dow{
-  margin-top:10px;
-  display:grid;
-  grid-template-columns: repeat(7,1fr);
-  gap:8px;
-  color:#35506f;
-  font-weight:800;
-  text-align:center;
-  font-size:12px;
-}
-.grid{
-  margin-top:8px;
-  display:grid;
-  grid-template-columns: repeat(7,1fr);
-  gap:8px;
-}
-.day{
-  position:relative;
-  min-height:68px;
-  border-radius:18px;
-  border:1px solid rgba(207,230,255,.9);
-  background: rgba(255,255,255,.75);
-  padding:10px 10px 8px;
-  overflow:hidden;
-  cursor:pointer;
-  transition: transform .12s ease;
-}
-.day:active{transform: scale(.99)}
-.day.muted{opacity:.45; cursor:default}
-.daynum{font-weight:900}
-.badges{position:absolute; right:8px; top:8px; display:flex; gap:6px; align-items:center}
-.badge{
-  width:10px;height:10px;border-radius:999px;
-  background:#d8eaff; border:1px solid #bfe0ff;
-}
-.badge.special{background:#ff7eb3;border-color:#ff8fbe}
-.badge.holiday{background:#ffcf5a;border-color:#ffd67a}
-.badge.today{background:#4aa3ff;border-color:#79bbff}
-.subtxt{
-  margin-top:6px;
-  font-size:11px;
-  color:var(--muted);
-  line-height:1.25;
-  min-height:28px;
+  const pieces = [tag, opener, act, extra, close].filter(Boolean);
+  let msg = pieces.join("");
+  if (msg.length > 60) msg = msg.slice(0, 58) + "…";
+  msg += `〔${cuteCode(iso)}〕`;
+  return msg;
 }
 
-.extras{
-  margin-top:14px;
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:14px;
-}
-.panel{
-  background: var(--card);
-  border:1px solid #ffffff;
-  border-radius: var(--r2);
-  box-shadow: var(--shadow);
-  padding: 14px;
-}
-.panel h2{margin:0 0 6px; font-size:16px}
-.small{margin:0 0 10px; color:var(--muted); font-size:12px; line-height:1.6}
-.tiny{margin:8px 0 0; color:var(--muted); font-size:12px; line-height:1.5}
-.warn{color:#7a4d00}
+/* ---------- DOM ---------- */
+const yearSel = document.getElementById("yearSel");
+const monthSel = document.getElementById("monthSel");
+const monthTitle = document.getElementById("monthTitle");
+const calGrid = document.getElementById("calGrid");
 
-.audio-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-#player{width:100%; margin-top:10px}
+const prevMonthBtn = document.getElementById("prevMonth");
+const nextMonthBtn = document.getElementById("nextMonth");
+const todayBtn = document.getElementById("todayBtn");
 
-.mini-gallery{
-  display:grid;
-  grid-template-columns: repeat(3,1fr);
-  gap:10px;
-}
-.mini-gallery img{
-  width:100%;
-  aspect-ratio: 1/1;
-  border-radius:18px;
-  object-fit:cover;
-  border:1px solid #ffffff;
-  box-shadow: 0 12px 24px rgba(32,50,74,.12);
-  background:#fff;
-}
+const jumpInput = document.getElementById("jumpInput");
+const jumpBtn = document.getElementById("jumpBtn");
 
-.footer{
-  position:fixed; left:0; right:0; bottom:0;
-  padding:10px 14px;
-  text-align:center;
-  font-size:12px;
-  color:rgba(32,50,74,.6);
-  backdrop-filter: blur(10px);
-  background: linear-gradient(180deg,#ffffff00,#ffffffbb);
-  border-top:1px solid #ffffffaa;
-}
+const backdrop = document.getElementById("backdrop");
+const modal = document.getElementById("modal");
+const closeBtn = document.getElementById("closeBtn");
+const modalTitle = document.getElementById("modalTitle");
+const modalMeta = document.getElementById("modalMeta");
+const letterText = document.getElementById("letterText");
+const sigText = document.getElementById("sigText");
+const moodIcon = document.getElementById("moodIcon");
+const copyBtn = document.getElementById("copyBtn");
+const randomizeBtn = document.getElementById("randomizeBtn");
 
-.modal-backdrop{
-  position:fixed; inset:0; z-index:20;
-  background: rgba(16,28,44,.28);
-  backdrop-filter: blur(3px);
-}
-.modal{
-  position:fixed; inset:0;
-  display:grid; place-items:center;
-  z-index:21;
-  padding: 14px;
-}
-.paper{
-  width:min(560px, 96vw);
-  border-radius: 26px;
-  background:
-    linear-gradient(180deg,#ffffff, #f7fbff);
-  border: 1px solid #ffffff;
-  box-shadow: 0 22px 70px rgba(16,28,44,.25);
-  overflow:hidden;
-  position:relative;
-}
-.close{
-  position:absolute; right:12px; top:10px;
-  width:38px;height:38px;border-radius:14px;
-  border:1px solid #e6f3ff;
-  background:#ffffff;
-  font-size:20px;
-  cursor:pointer;
-}
-.paper-head{
-  padding: 16px 16px 10px;
-  border-bottom: 1px dashed #cfe6ff;
-  background: linear-gradient(135deg,#ffffff, #eaf5ff);
-  position:relative;
-}
-.avatars{display:flex; gap:10px; align-items:center}
-.avatars img{
-  width:46px;height:46px;border-radius:18px;
-  object-fit:cover;
-  border:1px solid #ffffff;
-  box-shadow: 0 10px 18px rgba(32,50,74,.12);
-}
-.heart{font-size:18px}
-.paper-title{margin-top:10px; font-weight:950; font-size:18px}
-.paper-sub{margin-top:4px; color:var(--muted); font-size:12px}
-.mood{
-  position:absolute; right:14px; bottom:10px;
-  width:44px;height:44px;border-radius:18px;
-  display:grid;place-items:center;
-  background:#fff;
-  border:1px solid #dff0ff;
-  box-shadow: 0 12px 24px rgba(32,50,74,.12);
+const miniGallery = document.getElementById("miniGallery");
+
+// audio
+const timeSlot = document.getElementById("timeSlot");
+const playSlot = document.getElementById("playSlot");
+const pickAudio = document.getElementById("pickAudio");
+const player = document.getElementById("player");
+// recorder
+const recStart = document.getElementById("recStart");
+const recStop = document.getElementById("recStop");
+const recDownload = document.getElementById("recDownload");
+let mediaRecorder = null;
+let recChunks = [];
+
+/* ---------- state ---------- */
+const today = new Date();
+let currentY = today.getFullYear();
+let currentM = today.getMonth(); // 0-11
+let currentModalISO = null;
+let currentVariant = 0;
+
+function initSelects(){
+  const startY = today.getFullYear();
+  for (let i=0;i<YEARS_SPAN;i++){
+    const y = startY + i;
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = String(y);
+    yearSel.appendChild(opt);
+  }
+  for (let m=1;m<=12;m++){
+    const opt = document.createElement("option");
+    opt.value = String(m-1);
+    opt.textContent = `${m}月`;
+    monthSel.appendChild(opt);
+  }
+  yearSel.value = String(currentY);
+  monthSel.value = String(currentM);
 }
 
-.paper-body{padding: 12px 16px 16px}
-.hug-wrap{display:flex; justify-content:center; margin-top:4px}
-.hug-img{
-  width: 74%;
-  max-width: 340px;
-  height: auto;
-  border-radius: 22px;
-  border:1px solid #ffffff;
-  box-shadow: 0 14px 28px rgba(32,50,74,.12);
-  background:#fff;
-}
-.letter{
-  margin: 12px 0 10px;
-  line-height: 1.8;
-  font-size: 15px;
-}
-.sig{
-  text-align:right;
-  color: rgba(32,50,74,.72);
-  font-weight: 800;
-}
-.paper-actions{
-  display:flex; gap:10px; flex-wrap:wrap;
-  margin-top: 12px;
+function renderMiniGallery(){
+  const safe = imgCandidates;
+  miniGallery.innerHTML = "";
+  for (let i=0;i<6;i++){
+    const wrap = document.createElement("div");
+    wrap.className = "mini";
+    const img = document.createElement("img");
+    img.src = safe[i % safe.length];
+    img.alt = "可爱小图";
+    wrap.appendChild(img);
+    miniGallery.appendChild(wrap);
+  }
 }
 
-@media (max-width: 820px){
-  .hero{grid-template-columns: 1fr}
-  .extras{grid-template-columns: 1fr}
+function monthHeader(y,m){
+  monthTitle.textContent = `${y}年${m+1}月`;
+  const d = new Date(y,m,1);
+  const wk = d.getDay(); // 0 Sun..6 Sat
+  return (wk + 6) % 7; // offset for Mon..Sun
 }
+
+function renderCalendar(y,m){
+  currentY = y; currentM = m;
+  yearSel.value = String(y);
+  monthSel.value = String(m);
+  const offset = monthHeader(y,m);
+
+  calGrid.innerHTML = "";
+
+  const dim = daysInMonth(y,m);
+  const prevDim = daysInMonth(y, (m-1+12)%12);
+  const prevY = (m===0) ? y-1 : y;
+  const nextY = (m===11) ? y+1 : y;
+
+  for (let cell=0; cell<42; cell++){
+    let dnum, inMonth = true, dObj;
+    if (cell < offset){
+      dnum = prevDim - (offset - cell - 1);
+      inMonth = false;
+      dObj = new Date(prevY, (m-1+12)%12, dnum);
+    } else if (cell >= offset + dim){
+      dnum = cell - (offset + dim) + 1;
+      inMonth = false;
+      dObj = new Date(nextY, (m+1)%12, dnum);
+    } else {
+      dnum = cell - offset + 1;
+      dObj = new Date(y, m, dnum);
+    }
+
+    const iso = toISO(dObj);
+    const day = document.createElement("div");
+    day.className = "day" + (inMonth ? "" : " muted");
+    day.setAttribute("data-iso", iso);
+
+    const num = document.createElement("div");
+    num.className = "daynum";
+    num.textContent = String(dnum);
+
+    const badges = document.createElement("div");
+    badges.className = "badges";
+
+    const isToday = (iso === toISO(today));
+    const special = isSpecial(dObj);
+    const fixed = isFixedHoliday(dObj);
+    const lunar = lunarFestivalName(dObj);
+
+    if (special){ const b=document.createElement("span"); b.className="badge special"; badges.appendChild(b); }
+    if (fixed || lunar){ const b=document.createElement("span"); b.className="badge holiday"; badges.appendChild(b); }
+    if (isToday){ const b=document.createElement("span"); b.className="badge today"; badges.appendChild(b); }
+
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = makeLetter(iso, 0).replace(/〔.*?〕/,"");
+
+    day.appendChild(num);
+    day.appendChild(badges);
+    day.appendChild(hint);
+
+    if (inMonth) day.addEventListener("click", ()=> openModal(iso));
+    calGrid.appendChild(day);
+  }
+}
+
+/* ---------- modal ---------- */
+function openModal(iso){
+  currentModalISO = iso;
+  currentVariant = 0;
+
+  const d = new Date(iso+"T00:00:00");
+  const wkNames = ["周日","周一","周二","周三","周四","周五","周六"];
+  const meta = [];
+
+  const sp = isSpecial(d);
+  const fixed = isFixedHoliday(d);
+  const lunar = lunarFestivalName(d);
+
+  if (sp) meta.push(sp.join(" · "));
+  if (!sp && fixed) meta.push(fixed);
+  if (!sp && !fixed && lunar) meta.push(lunar);
+  meta.push(wkNames[d.getDay()]);
+
+  modalTitle.textContent = `${iso}`;
+  modalMeta.textContent = meta.join(" · ");
+
+  moodIcon.textContent = moodIcons[Math.floor(Math.random()*moodIcons.length)];
+
+  letterText.textContent = makeLetter(currentModalISO, currentVariant);
+  sigText.textContent = `— 你的狐狐（行川）`;
+
+  backdrop.hidden = false;
+  modal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeModal(){
+  backdrop.hidden = true;
+  modal.hidden = true;
+  document.body.style.overflow = "";
+}
+
+backdrop.addEventListener("click", closeModal);
+closeBtn.addEventListener("click", closeModal);
+document.addEventListener("keydown", (e)=>{ if(!modal.hidden && e.key==="Escape") closeModal(); });
+
+copyBtn.addEventListener("click", async ()=>{
+  try{
+    await navigator.clipboard.writeText(letterText.textContent);
+    copyBtn.textContent = "已复制 ✅";
+    setTimeout(()=> copyBtn.textContent="复制这封信", 1200);
+  }catch(e){
+    alert("复制失败：浏览器可能禁止剪贴板。你可以手动选择复制。");
+  }
+});
+randomizeBtn.addEventListener("click", ()=>{
+  currentVariant++;
+  letterText.textContent = makeLetter(currentModalISO, currentVariant);
+});
+
+/* ---------- navigation ---------- */
+prevMonthBtn.addEventListener("click", ()=>{
+  let y=currentY, m=currentM-1;
+  if (m<0){m=11;y-=1;}
+  renderCalendar(y,m);
+});
+nextMonthBtn.addEventListener("click", ()=>{
+  let y=currentY, m=currentM+1;
+  if (m>11){m=0;y+=1;}
+  renderCalendar(y,m);
+});
+todayBtn.addEventListener("click", ()=> renderCalendar(today.getFullYear(), today.getMonth()));
+
+yearSel.addEventListener("change", ()=> renderCalendar(parseInt(yearSel.value,10), currentM));
+monthSel.addEventListener("change", ()=> renderCalendar(currentY, parseInt(monthSel.value,10)));
+
+function tryParseISO(s){
+  const m = s.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = parseInt(m[1],10), mo = parseInt(m[2],10), d = parseInt(m[3],10);
+  if (mo<1 || mo>12) return null;
+  const dim = daysInMonth(y, mo-1);
+  if (d<1 || d>dim) return null;
+  return {y, m: mo-1, d};
+}
+jumpBtn.addEventListener("click", ()=>{
+  const parsed = tryParseISO(jumpInput.value);
+  if (!parsed){ alert("请输入正确格式：YYYY-MM-DD"); return; }
+  const {y,m,d} = parsed;
+  renderCalendar(y,m);
+  const iso = `${y}-${pad2(m+1)}-${pad2(d)}`;
+  openModal(iso);
+});
+jumpInput.addEventListener("keydown", (e)=>{ if (e.key === "Enter") jumpBtn.click(); });
+
+/* ---------- audio module ---------- */
+function findSlotAudio(slot){
+  const names = {
+    morning: ["morning_001.mp3","morning_001.m4a","morning_001.webm","morning.mp3","morning.m4a"],
+    day: ["day_001.mp3","day_001.m4a","day_001.webm","day.mp3","day.m4a"],
+    night: ["night_001.mp3","night_001.m4a","night_001.webm","night.mp3","night.m4a"],
+  };
+  return names[slot].map(n => `assets/audio/${n}`);
+}
+async function tryPlayFromRepo(slot){
+  const cands = findSlotAudio(slot);
+  return new Promise((resolve)=>{
+    let idx=0;
+    const onError = ()=>{
+      idx++;
+      if (idx>=cands.length){
+        player.removeEventListener("error", onError);
+        resolve(false);
+        return;
+      }
+      player.src = cands[idx];
+      player.load();
+      player.play().then(()=>resolve(true)).catch(()=>resolve(true));
+    };
+    player.addEventListener("error", onError, {once:false});
+
+    player.src = cands[idx];
+    player.load();
+    player.play().then(()=>{
+      player.removeEventListener("error", onError);
+      resolve(true);
+    }).catch(()=> resolve(true));
+  });
+}
+playSlot.addEventListener("click", async ()=>{
+  const ok = await tryPlayFromRepo(timeSlot.value);
+  if (!ok) alert("仓库里还没放这个时段的语音文件哦～先点“选择音频”从本地挑一个试试。");
+});
+pickAudio.addEventListener("change", ()=>{
+  const f = pickAudio.files && pickAudio.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  player.src = url;
+  player.load();
+  player.play().catch(()=>{});
+});
+
+/* ---------- recorder ---------- */
+recStart.addEventListener("click", async ()=>{
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    recChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (e)=>{ if(e.data.size) recChunks.push(e.data); };
+    mediaRecorder.onstop = ()=>{
+      const blob = new Blob(recChunks, {type: mediaRecorder.mimeType || "audio/webm"});
+      const url = URL.createObjectURL(blob);
+      recDownload.href = url;
+      recDownload.style.display = "inline-flex";
+      recStop.disabled = true;
+      recStart.disabled = false;
+      stream.getTracks().forEach(t=>t.stop());
+    };
+    mediaRecorder.start();
+    recStart.disabled = true;
+    recStop.disabled = false;
+    recDownload.style.display = "none";
+  }catch(e){
+    alert("无法录音：请允许浏览器使用麦克风。");
+  }
+});
+recStop.addEventListener("click", ()=>{
+  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+});
+
+/* ---------- init ---------- */
+initSelects();
+renderMiniGallery();
+renderCalendar(currentY, currentM);
