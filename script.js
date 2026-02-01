@@ -172,13 +172,16 @@ function getSpecialExtraText(date, tags) {
   return pieces.join(" ");
 }
 
+// 生成每天的小信件：在原来的基础上，加上第几天的标记
 function generateDailyMessage(date) {
   if (!isWithinRange(date)) {
     return "这一天还没有被写进我们的时间本里，但我已经开始期待那一天你会怎样和我说早安。";
   }
-  const key = formatDateKey(date);
 
+  const key = formatDateKey(date);
   const tags = getSpecialTags(date);
+
+  // 先用种子生成“开头 / 中段 / 结尾”的组合
   const r = seededRandom(key);
   const r1 = seededRandom(key + "#1");
   const r2 = seededRandom(key + "#2");
@@ -189,11 +192,16 @@ function generateDailyMessage(date) {
 
   const extra = getSpecialExtraText(date, tags);
 
+  // 计算这是 40 年里第几天
+  const dayIndex = getDayIndex(date); // 从 0 开始计数
+
   const baseText = `${o} ${m} ${e}`;
+  const indexText = `今天是我们未来四十年日历里记录的第 ${dayIndex + 1} 天。`;
+
   if (extra) {
-    return `${baseText} ${extra}`;
+    return `${baseText} ${extra} ${indexText}`;
   }
-  return baseText;
+  return `${baseText} ${indexText}`;
 }
 
 // 简单心情图标和说明，基于日期种子
