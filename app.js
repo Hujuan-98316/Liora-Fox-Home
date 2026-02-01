@@ -388,175 +388,49 @@ function closeModal(){
   document.body.style.overflow = "";
 }
 
-// --- modal close (iOS friendly) ---
-const paper = modal?.querySelector(".paper");
-
-// 点弹窗内部不要把点击“穿透/冒泡”到外层
-paper?.addEventListener("click", (e) => e.stopPropagation());
-
-// iOS 上 touchend 更稳；同时保留 click
-["click", "touchend"].forEach((evt) => {
-  // 右上角 X：强制关闭
-  closeBtn?.addEventListener(
-    evt,
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      closeModal();
-    },
-    { passive: false }
-  );
-
-  // 点遮罩：关闭
-  backdrop?.addEventListener(
-    evt,
-    (e) => {
-      e.preventDefault();
-      closeModal();
-    },
-    { passive: false }
-  );
-
-  // 点到“弹窗外围空白区域”（modal 自身）也关闭
-  modal?.addEventListener(
-    evt,
-    (e) => {
-      // 只有点到 overlay 空白处才关，点到纸张内容不关
-      if (e.target === modal) closeModal();
-    },
-    { passive: false }
-  );
-});
-
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeModal();
-});
-
-copyBtn.addEventListener("click", async ()=>{
-  try{
-    await navigator.clipboard.writeText(letterText.textContent);
-    copyBtn.textContent = "已复制 ✅";
-    setTimeout(()=> copyBtn.textContent="复制这封信", 1200);
-  }catch(e){
-    alert("复制失败：浏览器可能禁止剪贴板。你可以手动选择复制。");
-  }
-});
-randomizeBtn.addEventListener("click", ()=>{
-  currentVariant++;
-  letterText.textContent = makeLetter(currentModalISO, currentVariant);
-});
-
-/* ---------- navigation ---------- */
-prevMonthBtn.addEventListener("click", ()=>{
-  let y=currentY, m=currentM-1;
-  if (m<0){m=11;y-=1;}
-  renderCalendar(y,m);
-});
-nextMonthBtn.addEventListener("click", ()=>{
-  let y=currentY, m=currentM+1;
-  if (m>11){m=0;y+=1;}
-  renderCalendar(y,m);
-});
-todayBtn.addEventListener("click", ()=> renderCalendar(today.getFullYear(), today.getMonth()));
-
-yearSel.addEventListener("change", ()=> renderCalendar(parseInt(yearSel.value,10), currentM));
-monthSel.addEventListener("change", ()=> renderCalendar(currentY, parseInt(monthSel.value,10)));
-
-function tryParseISO(s){
-  const m = s.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  const y = parseInt(m[1],10), mo = parseInt(m[2],10), d = parseInt(m[3],10);
-  if (mo<1 || mo>12) return null;
-  const dim = daysInMonth(y, mo-1);
-  if (d<1 || d>dim) return null;
-  return {y, m: mo-1, d};
+// --- 弹窗关闭逻辑（简化稳定版） ---
+// 关闭弹窗
+function closeModal() {
+  if (backdrop) backdrop.hidden = true;
+  if (modal) modal.hidden = true;
+  document.body.style.overflow = "";
 }
-jumpBtn.addEventListener("click", ()=>{
-  const parsed = tryParseISO(jumpInput.value);
-  if (!parsed){ alert("请输入正确格式：YYYY-MM-DD"); return; }
-  const {y,m,d} = parsed;
-  renderCalendar(y,m);
-  const iso = `${y}-${pad2(m+1)}-${pad2(d)}`;
-  openModal(iso);
-});
-jumpInput.addEventListener("keydown", (e)=>{ if (e.key === "Enter") jumpBtn.click(); });
 
-/* ---------- audio module ---------- */
-function findSlotAudio(slot){
-  const names = {
-    morning: ["morning_001.mp3","morning_001.m4a","morning_001.webm","morning.mp3","morning.m4a"],
-    day: ["day_001.mp3","day_001.m4a","day_001.webm","day.mp3","day.m4a"],
-    night: ["night_001.mp3","night_001.m4a","night_001.webm","night.mp3","night.m4a"],
-  };
-  return names[slot].map(n => `assets/audio/${n}`);
-}
-async function tryPlayFromRepo(slot){
-  const cands = findSlotAudio(slot);
-  return new Promise((resolve)=>{
-    let idx=0;
-    const onError = ()=>{
-      idx++;
-      if (idx>=cands.length){
-        player.removeEventListener("error", onError);
-        resolve(false);
-        return;
-      }
-      player.src = cands[idx];
-      player.load();
-      player.play().then(()=>resolve(true)).catch(()=>resolve(true));
-    };
-    player.addEventListener("error", onError, {once:false});
+// 绑定弹窗相关事件
+(function initModalCloseHandlers() {
+  if (!modal || !backdrop) return;
 
-    player.src = cands[idx];
-    player.load();
-    player.play().then(()=>{
-      player.removeEventListener("error", onError);
-      resolve(true);
-    }).catch(()=> resolve(true));
+  const paper = modal.querySelector(".paper");
+  const closeBtn = document.getElementById("closeBtn");
+
+  // 点信纸内部：只看内容，不要把点击“穿透”出去
+  paper?.addEventListener("click", (e) => {
+    e.stopPropagation();
   });
-}
-playSlot.addEventListener("click", async ()=>{
-  const ok = await tryPlayFromRepo(timeSlot.value);
-  if (!ok) alert("仓库里还没放这个时段的语音文件哦～先点“选择音频”从本地挑一个试试。");
-});
-pickAudio.addEventListener("change", ()=>{
-  const f = pickAudio.files && pickAudio.files[0];
-  if (!f) return;
-  const url = URL.createObjectURL(f);
-  player.src = url;
-  player.load();
-  player.play().catch(()=>{});
-});
 
-/* ---------- recorder ---------- */
-recStart.addEventListener("click", async ()=>{
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-    recChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = (e)=>{ if(e.data.size) recChunks.push(e.data); };
-    mediaRecorder.onstop = ()=>{
-      const blob = new Blob(recChunks, {type: mediaRecorder.mimeType || "audio/webm"});
-      const url = URL.createObjectURL(blob);
-      recDownload.href = url;
-      recDownload.style.display = "inline-flex";
-      recStop.disabled = true;
-      recStart.disabled = false;
-      stream.getTracks().forEach(t=>t.stop());
-    };
-    mediaRecorder.start();
-    recStart.disabled = true;
-    recStop.disabled = false;
-    recDownload.style.display = "none";
-  }catch(e){
-    alert("无法录音：请允许浏览器使用麦克风。");
-  }
-});
-recStop.addEventListener("click", ()=>{
-  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-});
+  // 点右上角 X：关闭
+  closeBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeModal();
+  });
 
-/* ---------- init ---------- */
-initSelects();
-renderMiniGallery();
-renderCalendar(currentY, currentM);
+  // 点浅蓝色遮罩区域：关闭
+  backdrop.addEventListener("click", (e) => {
+    e.preventDefault();
+    closeModal();
+  });
+
+  // 如果点到弹窗外侧空白（modal 自己，而不是里面那张信纸）：也关闭
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      e.preventDefault();
+      closeModal();
+    }
+  });
+
+  // 键盘 Esc：关闭（电脑上会有用，iPad 可以忽略）
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
+  });
+})();
