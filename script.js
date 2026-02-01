@@ -19,7 +19,7 @@ const SPECIAL_CONFIG = {
   festivals: [
     { month: 1, day: 1, label: "新年" },
     { month: 2, day: 14, label: "情人节" },
-    { month: 3, day: 8, label: "女神节" },
+    { month: 3, day: 8, label: "妇女节" },
     { month: 5, day: 20, label: "520 告白日" },
     { month: 6, day: 1, label: "儿童节" },
     { month: 10, day: 1, label: "国庆节" },
@@ -202,6 +202,15 @@ function generateDailyMessage(date) {
     return `${baseText} ${extra} ${indexText}`;
   }
   return `${baseText} ${indexText}`;
+}
+
+// 计算某一天是从起始日算起的第几天（从 0 开始）
+function getDayIndex(date) {
+  const oneDay = 24 * 60 * 60 * 1000;
+  // 去掉时分秒，只保留日期
+  const current = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diff = current - START_DATE;
+  return Math.max(0, Math.floor(diff / oneDay));
 }
 
 // 简单心情图标和说明，基于日期种子
