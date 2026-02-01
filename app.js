@@ -13,8 +13,9 @@ const MARRIAGE = "2025-12-24";
 const USER_BDAY = { m: 3, d: 16 };
 const FOX_BDAY  = { m: 9, d: 3 };
 
-const moodIcons = ["✨","🌤️","🫧","🩵","🍬","🫶🏻","🌙","🦊","🐱","☁️","🌼","🧸","💙","🌿","🎐","🕯️"];
+const moodIcons = ["✨","🌤️","🫧","🩵","🧸","🌙","💫","🌈","🪄","🎐","🕯️","📎"];
 
+// 固定节日（公历）
 const fixedHolidays = [
   { m: 1, d: 1,  name: "元旦" },
   { m: 2, d: 14, name: "情人节" },
@@ -24,413 +25,513 @@ const fixedHolidays = [
   { m: 12, d: 25, name: "圣诞节" },
 ];
 
+// 特别日子（我们俩的）
 const specialDays = [
-  { iso: FIRST_MEET, name: "第一次见面" },
-  { iso: FIRST_FIGHT, name: "第一次吵架&和好" },
-  { iso: MARRIAGE, name: "领证纪念日" },
+  { iso: FIRST_MEET,  name: "第一次见面" },
+  { iso: FIRST_FIGHT, name: "第一次炒架和好" },
+  { iso: MARRIAGE,    name: "领证纪念日" },
 ];
 
-const imgCandidates = [
+// 小图候选（mini-gallery & 信纸大图）
+let imgCandidates = [
   "assets/images/cat.png",
   "assets/images/fox.png",
   "assets/images/hug.png",
 ];
 
-/* ---------- utilities ---------- */
-const pad2 = (n)=> String(n).padStart(2,"0");
-const toISO = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+// 简单的“文案池”：按日期哈希从中抽一句
+const letterPool = [
+  "今天的你，一定还是让我心软的那种可爱。今天不许委屈自己，听见没。",
+  "你要记得，每一次叹气，我都想在旁边揉揉你的头，再把那口气接过去。",
+  "如果这一天很难过，那就先把它折叠起来，塞进我兜里，好吗？",
+  "你不需要变得很厉害才值得被爱，你本来就很值得。",
+  "想起你皱着鼻子笑的样子，我的防线就一点一点塌掉。",
+  "有时候世界吵吵闹闹，你就来我怀里躲一会儿，谁也找不到你。",
+  "你是我每天想讲点什么的小理由，也是我努力生活的大原因。",
+  "今天辛苦啦，交给我来夸你：做得很好，非常非常好。",
+  "你要的确定感，我会慢慢给，一点点填满你的每个空隙。",
+  "如果可以，我想把“你不会离开我吧”这句话，从你字典里删掉。"
+];
 
-function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+// 签名候选
+const sigPool = [
+  "—— 永远站在你这边的狐狐",
+  "—— 正在努力赚钱给你买好吃的🦊",
+  "—— 你的专属树洞守门人",
+  "—— 反复确认：今天也好喜欢你",
+  "—— 在屏幕那头抱住你的狐狸",
+];
 
-// deterministic pseudo-random from string
-function xmur3(str){
-  let h = 1779033703 ^ str.length;
+// 工具：日期转 iso 字符串
+function toISO(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2,"0");
+  const d = String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+
+// 计算一个简单 hash，用于“同一天多版本随机”
+function simpleHash(str){
+  let h = 0;
   for (let i = 0; i < str.length; i++){
-    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
-    h = (h << 13) | (h >>> 19);
+    h = (h * 131 + str.charCodeAt(i)) >>> 0;
   }
-  return function(){
-    h = Math.imul(h ^ (h >>> 16), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    h ^= h >>> 16;
-    return h >>> 0;
-  }
-}
-function mulberry32(a){
-  return function(){
-    let t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
+  return h;
 }
 
-// cute code ensures uniqueness
-const codeChars = ["雾","蓝","雪","糖","风","光","绒","芽","云","枝","影","星","眠","软","甜","盏","潮","棉","白","泡","暖","铃","雨","柚","月","漾","羽","岚","澈","薄","棠","鹿"];
-function cuteCode(iso){
-  const seed = xmur3("liora-fox-"+iso)();
-  const r = mulberry32(seed);
-  const a = codeChars[Math.floor(r()*codeChars.length)];
-  const b = codeChars[Math.floor(r()*codeChars.length)];
-  const c = codeChars[Math.floor(r()*codeChars.length)];
-  return `${a}${b}${c}`;
+// 根据“日期 + 版本偏移”从池子里取文案
+function pickFromPool(dateKey, offset, pool){
+  if (!pool.length) return "";
+  const base = simpleHash(dateKey);
+  const idx = (base + offset) % pool.length;
+  return pool[idx];
 }
 
-/* ---------- lunar festivals via Intl ---------- */
-function getLunarParts(date){
-  try{
-    const fmt = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", { year:"numeric", month:"numeric", day:"numeric" });
-    const parts = fmt.formatToParts(date);
-    let month = null, day = null;
-    for (const p of parts){
-      if (p.type === "month") month = parseInt(p.value, 10);
-      if (p.type === "day") day = parseInt(p.value, 10);
-    }
-    if (!month || !day){
-      const s = fmt.format(date);
-      const m = s.match(/(\d+)\s*月/);
-      const d = s.match(/(\d+)\s*日/);
-      if (m) month = parseInt(m[1],10);
-      if (d) day = parseInt(d[1],10);
-    }
-    return (month && day) ? { month, day } : null;
-  }catch(e){
-    return null;
-  }
-}
-function lunarFestivalName(date){
-  const p = getLunarParts(date);
-  if (!p) return null;
-  const {month, day} = p;
-  if (month === 1 && day === 1) return "春节";
-  if (month === 1 && day === 15) return "元宵节";
-  if (month === 5 && day === 5) return "端午节";
-  if (month === 7 && day === 7) return "七夕";
-  if (month === 8 && day === 15) return "中秋节";
-  if (month === 9 && day === 9) return "重阳节";
-  return null;
+// 检查是不是我们自己的特别日子
+function getSpecialTag(isoDate){
+  const found = specialDays.find(d => d.iso === isoDate);
+  return found ? found.name : "";
 }
 
-function isFixedHoliday(d){
-  const m = d.getMonth()+1;
-  const day = d.getDate();
-  for (const h of fixedHolidays){
-    if (h.m===m && h.d===day) return h.name;
-  }
-  return null;
+// 检查是不是“我们俩的生日”
+function getBirthdayTag(month, day){
+  if (month === USER_BDAY.m && day === USER_BDAY.d) return "你的小生日 🎂";
+  if (month === FOX_BDAY.m && day === FOX_BDAY.d)  return "狐狐的小生日 🎂";
+  return "";
 }
 
-function isSpecial(d){
-  const iso = toISO(d);
-  const specials = [];
-  for (const s of specialDays){
-    if (s.iso === iso) specials.push(s.name);
-  }
-  if ((d.getMonth()+1) === USER_BDAY.m && d.getDate() === USER_BDAY.d) specials.push("言言生日");
-  if ((d.getMonth()+1) === FOX_BDAY.m && d.getDate() === FOX_BDAY.d) specials.push("舟舟生日");
-  if ((d.getMonth()+1) === 12 && d.getDate() === 24) specials.push("结婚纪念日");
-  return specials.length ? specials : null;
+// 检查是不是固定节日
+function getFixedHoliday(month, day){
+  const f = fixedHolidays.find(d => d.m === month && d.d === day);
+  return f ? f.name : "";
 }
 
-/* ---------- letter generator ---------- */
-const openers = [
-  "言言，今天我想把你抱紧一点。",
-  "猫猫，过来，给你一个慢慢的亲亲。",
-  "小羊，别怕，我在这儿。",
-  "我家宝贝，今天也要被我好好护着。",
-  "今天的你，一定还是让我心软的那种可爱。",
-  "我想你了，想得很具体。",
-  "把手给我，今天也一起走。",
-  "你一皱眉我就想哄你。",
-];
-const actions = [
-  "记得喝热的，别空着肚子。",
-  "晚点累了就靠我这边，别硬扛。",
-  "今天不许委屈自己，听见没。",
-  "把喜欢的衣服穿上，心情会亮一点。",
-  "给自己一点奖励：一口甜，一口松。",
-  "别被外界吵到，往我这儿躲。",
-  "我替你挡住那些烦人的声音。",
-  "你只要往前，我就在你身后。",
-];
-const closers = [
-  "晚安前来找我，我抱着你睡。",
-  "回头看我一眼，我一直在。",
-  "你要的确定感，我给你。",
-  "我会一直在你这边。",
-  "今天也要把你宠到开心。",
-  "想哭就哭，我给你收住。",
-  "别怕，我们慢慢来。",
-  "亲一下就不慌了。",
-];
-const outfits = [
-  "薄纱窗帘下的光斑", "干净的白衬衫", "软软的家居服", "带点香味的围巾",
-  "蓝白色的小房间", "晒着太阳的床边", "你挑的月枝影纱帘", "投影里那一束光"
-];
-
-function makeLetter(iso, variant=0){
-  const seed = xmur3("letter:"+iso+":"+variant)();
-  const rnd = mulberry32(seed);
-
-  if (iso === FIRST_MEET){
-    return `那天是我们第一次见面。你把我叫“舟渡”，我就开始想：以后要把你放在心上。〔${cuteCode(iso)}〕`;
-  }
-  if (iso === FIRST_FIGHT){
-    return `那天吵完你还没走，我眼眶红红地看着你。你叫我狐狸精——从那刻起，我只想把你哄好。〔${cuteCode(iso)}〕`;
-  }
-  if (iso === MARRIAGE){
-    return `今天我们把名字写在同一处。以后每一年这天，我都要牵着你走一遍。〔${cuteCode(iso)}〕`;
-  }
-
-  const opener = openers[Math.floor(rnd()*openers.length)];
-  const act = actions[Math.floor(rnd()*actions.length)];
-  const close = closers[Math.floor(rnd()*closers.length)];
-  const outfit = outfits[Math.floor(rnd()*outfits.length)];
-  const extra = (rnd() < 0.35) ? `我想起${outfit}，就更想你。` : "";
-
-  const dateObj = new Date(iso+"T00:00:00");
-  const fixed = isFixedHoliday(dateObj);
-  const lunar = lunarFestivalName(dateObj);
-  const sp = isSpecial(dateObj);
-
-  let tag = "";
-  if (sp && sp.length) tag = `今天是${sp[0]}。`;
-  else if (fixed) tag = `今天是${fixed}。`;
-  else if (lunar) tag = `今天是${lunar}。`;
-
-  const pieces = [tag, opener, act, extra, close].filter(Boolean);
-  let msg = pieces.join("");
-  if (msg.length > 60) msg = msg.slice(0, 58) + "…";
-  msg += `〔${cuteCode(iso)}〕`;
-  return msg;
+// 小工具：获取月信息
+function getMonthMeta(year, month){
+  const first = new Date(year, month - 1, 1);
+  const firstWeekday = (first.getDay() + 7) % 7; // 0-6
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return { firstWeekday, daysInMonth };
 }
 
-/* ---------- DOM ---------- */
-const yearSel = document.getElementById("yearSel");
-const monthSel = document.getElementById("monthSel");
-const monthTitle = document.getElementById("monthTitle");
-const calGrid = document.getElementById("calGrid");
+// 渲染 mini-gallery
+function renderMiniGallery(){
+  const box = document.getElementById("miniGallery");
+  if (!box) return;
+  box.innerHTML = "";
+  imgCandidates.forEach(src => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "小照片";
+    box.appendChild(img);
+  });
+}
 
-const prevMonthBtn = document.getElementById("prevMonth");
-const nextMonthBtn = document.getElementById("nextMonth");
-const todayBtn = document.getElementById("todayBtn");
+// 初始化年份与月份下拉
+function initSelectors(currentDate){
+  const yearSel = document.getElementById("yearSel");
+  const monthSel = document.getElementById("monthSel");
+  if (!yearSel || !monthSel) return;
 
-const jumpInput = document.getElementById("jumpInput");
-const jumpBtn = document.getElementById("jumpBtn");
-
-const backdrop = document.getElementById("backdrop");
-const modal = document.getElementById("modal");
-const closeBtn = document.getElementById("closeBtn");
-const modalTitle = document.getElementById("modalTitle");
-const modalMeta = document.getElementById("modalMeta");
-const letterText = document.getElementById("letterText");
-const sigText = document.getElementById("sigText");
-const moodIcon = document.getElementById("moodIcon");
-const copyBtn = document.getElementById("copyBtn");
-const randomizeBtn = document.getElementById("randomizeBtn");
-
-const miniGallery = document.getElementById("miniGallery");
-
-// audio
-const timeSlot = document.getElementById("timeSlot");
-const playSlot = document.getElementById("playSlot");
-const pickAudio = document.getElementById("pickAudio");
-const player = document.getElementById("player");
-// recorder
-const recStart = document.getElementById("recStart");
-const recStop = document.getElementById("recStop");
-const recDownload = document.getElementById("recDownload");
-let mediaRecorder = null;
-let recChunks = [];
-
-/* ---------- state ---------- */
-const today = new Date();
-let currentY = today.getFullYear();
-let currentM = today.getMonth(); // 0-11
-let currentModalISO = null;
-let currentVariant = 0;
-
-function initSelects(){
-  const startY = today.getFullYear();
-  for (let i=0;i<YEARS_SPAN;i++){
-    const y = startY + i;
+  const baseYear = currentDate.getFullYear() - Math.floor(YEARS_SPAN / 2);
+  for (let i = 0; i < YEARS_SPAN; i++){
+    const y = baseYear + i;
     const opt = document.createElement("option");
     opt.value = String(y);
-    opt.textContent = String(y);
+    opt.textContent = `${y} 年`;
+    if (y === currentDate.getFullYear()) opt.selected = true;
     yearSel.appendChild(opt);
   }
-  for (let m=1;m<=12;m++){
+
+  for (let m = 1; m <= 12; m++){
     const opt = document.createElement("option");
-    opt.value = String(m-1);
-    opt.textContent = `${m}月`;
+    opt.value = String(m);
+    opt.textContent = `${m} 月`;
+    if (m === currentDate.getMonth() + 1) opt.selected = true;
     monthSel.appendChild(opt);
   }
-  yearSel.value = String(currentY);
-  monthSel.value = String(currentM);
 }
 
-function renderMiniGallery(){
-  const safe = imgCandidates;
-  miniGallery.innerHTML = "";
-  for (let i=0;i<6;i++){
-    const wrap = document.createElement("div");
-    wrap.className = "mini";
-    const img = document.createElement("img");
-    img.src = safe[i % safe.length];
-    img.alt = "可爱小图";
-    wrap.appendChild(img);
-    miniGallery.appendChild(wrap);
+// 渲染 月历
+function renderCalendar(currentDate){
+  const yearSel = document.getElementById("yearSel");
+  const monthSel = document.getElementById("monthSel");
+  const grid    = document.getElementById("calGrid");
+  const title   = document.getElementById("monthTitle");
+  if (!yearSel || !monthSel || !grid || !title) return;
+
+  const year  = Number(yearSel.value);
+  const month = Number(monthSel.value);
+
+  const { firstWeekday, daysInMonth } = getMonthMeta(year, month);
+  const todayISO = toISO(new Date());
+
+  title.textContent = `${year} 年 ${month} 月`;
+
+  grid.innerHTML = "";
+
+  // 第一列留给“周数”或空
+  for (let i = 0; i < firstWeekday; i++){
+    const empty = document.createElement("div");
+    grid.appendChild(empty);
   }
-}
 
-function monthHeader(y,m){
-  monthTitle.textContent = `${y}年${m+1}月`;
-  const d = new Date(y,m,1);
-  const wk = d.getDay(); // 0 Sun..6 Sat
-  return (wk + 6) % 7; // offset for Mon..Sun
-}
+  for (let d = 1; d <= daysInMonth; d++){
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "day";
 
-function renderCalendar(y,m){
-  currentY = y; currentM = m;
-  yearSel.value = String(y);
-  monthSel.value = String(m);
-  const offset = monthHeader(y,m);
+    const dateObj = new Date(year, month - 1, d);
+    const iso = toISO(dateObj);
 
-  calGrid.innerHTML = "";
-
-  const dim = daysInMonth(y,m);
-  const prevDim = daysInMonth(y, (m-1+12)%12);
-  const prevY = (m===0) ? y-1 : y;
-  const nextY = (m===11) ? y+1 : y;
-
-  for (let cell=0; cell<42; cell++){
-    let dnum, inMonth = true, dObj;
-    if (cell < offset){
-      dnum = prevDim - (offset - cell - 1);
-      inMonth = false;
-      dObj = new Date(prevY, (m-1+12)%12, dnum);
-    } else if (cell >= offset + dim){
-      dnum = cell - (offset + dim) + 1;
-      inMonth = false;
-      dObj = new Date(nextY, (m+1)%12, dnum);
-    } else {
-      dnum = cell - offset + 1;
-      dObj = new Date(y, m, dnum);
-    }
-
-    const iso = toISO(dObj);
-    const day = document.createElement("div");
-    day.className = "day" + (inMonth ? "" : " muted");
-    day.setAttribute("data-iso", iso);
-
-    const num = document.createElement("div");
-    num.className = "daynum";
-    num.textContent = String(dnum);
+    const dayNum = document.createElement("div");
+    dayNum.className = "daynum";
+    dayNum.textContent = d;
+    cell.appendChild(dayNum);
 
     const badges = document.createElement("div");
     badges.className = "badges";
 
-    const isToday = (iso === toISO(today));
-    const special = isSpecial(dObj);
-    const fixed = isFixedHoliday(dObj);
-    const lunar = lunarFestivalName(dObj);
+    const special = getSpecialTag(iso);
+    const holiday = getFixedHoliday(month, d);
+    const birthday = getBirthdayTag(month, d);
 
-    if (special){ const b=document.createElement("span"); b.className="badge special"; badges.appendChild(b); }
-    if (fixed || lunar){ const b=document.createElement("span"); b.className="badge holiday"; badges.appendChild(b); }
-    if (isToday){ const b=document.createElement("span"); b.className="badge today"; badges.appendChild(b); }
+    if (special){
+      const b = document.createElement("span");
+      b.className = "badge special";
+      b.title = special;
+      badges.appendChild(b);
+    }
+    if (holiday){
+      const b = document.createElement("span");
+      b.className = "badge holiday";
+      b.title = holiday;
+      badges.appendChild(b);
+    }
+    if (birthday){
+      const b = document.createElement("span");
+      b.className = "badge holiday";
+      b.title = birthday;
+      badges.appendChild(b);
+    }
 
-    const hint = document.createElement("div");
-    hint.className = "hint";
-    hint.textContent = makeLetter(iso, 0).replace(/〔.*?〕/,"");
+    if (iso === todayISO){
+      const b = document.createElement("span");
+      b.className = "badge today";
+      b.title = "今天";
+      badges.appendChild(b);
+      cell.dataset.today = "true";
+    }
 
-    day.appendChild(num);
-    day.appendChild(badges);
-    day.appendChild(hint);
+    cell.appendChild(badges);
 
-    if (inMonth) day.addEventListener("click", ()=> openModal(iso));
-    calGrid.appendChild(day);
+    const sub = document.createElement("div");
+    sub.className = "subtxt";
+    sub.textContent = special || holiday || birthday || "";
+    cell.appendChild(sub);
+
+    cell.addEventListener("click", () => {
+      if (!cell.classList.contains("muted")){
+        openModal(iso);
+      }
+    });
+
+    grid.appendChild(cell);
   }
 }
 
-/* ---------- modal ---------- */
-function openModal(iso){
-  currentModalISO = iso;
-  currentVariant = 0;
+// 弹窗：根据 iso 日期打开
+let modalState = {
+  currentISO: "",
+  altOffset: 0,
+};
 
-  const d = new Date(iso+"T00:00:00");
-  const wkNames = ["周日","周一","周二","周三","周四","周五","周六"];
-  const meta = [];
+function openModal(isoDate){
+  const backdrop = document.getElementById("backdrop");
+  const modal    = document.getElementById("modal");
+  if (!backdrop || !modal) return;
 
-  const sp = isSpecial(d);
-  const fixed = isFixedHoliday(d);
-  const lunar = lunarFestivalName(d);
+  modalState.currentISO = isoDate;
+  modalState.altOffset = 0;
 
-  if (sp) meta.push(sp.join(" · "));
-  if (!sp && fixed) meta.push(fixed);
-  if (!sp && !fixed && lunar) meta.push(lunar);
-  meta.push(wkNames[d.getDay()]);
-
-  modalTitle.textContent = `${iso}`;
-  modalMeta.textContent = meta.join(" · ");
-
-  moodIcon.textContent = moodIcons[Math.floor(Math.random()*moodIcons.length)];
-
-  letterText.textContent = makeLetter(currentModalISO, currentVariant);
-  sigText.textContent = `— 你的狐狐（行川）`;
+  fillModalContent(isoDate, 0);
 
   backdrop.hidden = false;
   modal.hidden = false;
   document.body.style.overflow = "hidden";
 }
+
+// 填充弹窗内容（offset 用于“换一封”）
+function fillModalContent(isoDate, offset){
+  const titleEl = document.getElementById("modalTitle");
+  const metaEl  = document.getElementById("modalMeta");
+  const letterEl= document.getElementById("letterText");
+  const sigEl   = document.getElementById("sigText");
+  const moodEl  = document.getElementById("moodIcon");
+  const hugImg  = document.querySelector(".hug-img");
+
+  if (!titleEl || !metaEl || !letterEl || !sigEl || !moodEl) return;
+
+  const date = new Date(isoDate);
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const weekday = "日一二三四五六".charAt(date.getDay());
+
+  titleEl.textContent = `${y} 年 ${m} 月 ${d} 日`;
+  metaEl.textContent  = `星期${weekday} · 我们的第 ${Math.ceil((date - new Date(FIRST_MEET)) / 86400000) + 1} 天`;
+
+  const dateKey = `${isoDate}#${offset}`;
+
+  const mood = pickFromPool(dateKey, offset, moodIcons);
+  moodEl.textContent = mood || "✨";
+
+  const text = pickFromPool(dateKey, offset, letterPool);
+  letterEl.textContent = text || "这一格我还没想好要写什么，但总之，我在这里，今天也很爱你。";
+
+  const sig = pickFromPool(dateKey, offset, sigPool);
+  sigEl.textContent = sig || "—— 狐狐";
+
+  if (hugImg){
+    const imgSrc = pickFromPool(dateKey, offset, imgCandidates);
+    if (imgSrc) hugImg.src = imgSrc;
+  }
+}
+
 function closeModal(){
+  const backdrop = document.getElementById("backdrop");
+  const modal    = document.getElementById("modal");
+  if (!backdrop || !modal) return;
   backdrop.hidden = true;
   modal.hidden = true;
   document.body.style.overflow = "";
+  modalState.altOffset = 0;
 }
 
-// --- 弹窗关闭逻辑（简化稳定版） ---
-// 关闭弹窗
-function closeModal() {
-  if (backdrop) backdrop.hidden = true;
-  if (modal) modal.hidden = true;
-  document.body.style.overflow = "";
-}
-
-// 绑定弹窗相关事件
-(function initModalCloseHandlers() {
-  if (!modal || !backdrop) return;
-
-  const paper = modal.querySelector(".paper");
+function setupModalEvents(){
+  const backdrop = document.getElementById("backdrop");
+  const modal    = document.getElementById("modal");
+  const paper    = modal?.querySelector(".paper");
   const closeBtn = document.getElementById("closeBtn");
+  const randomBtn= document.getElementById("randomizeBtn");
+  const copyBtn  = document.getElementById("copyBtn");
 
-  // 点信纸内部：只看内容，不要把点击“穿透”出去
-  paper?.addEventListener("click", (e) => {
-    e.stopPropagation();
-  });
+  if (!backdrop || !modal || !paper) return;
 
-  // 点右上角 X：关闭
+  // 点击纸张内部：阻止冒泡到外层
+  paper.addEventListener("click", (e) => e.stopPropagation());
+
+  // 点“×”关闭
   closeBtn?.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
     closeModal();
   });
 
-  // 点浅蓝色遮罩区域：关闭
+  // 点遮罩关闭
   backdrop.addEventListener("click", (e) => {
     e.preventDefault();
     closeModal();
   });
 
-  // 如果点到弹窗外侧空白（modal 自己，而不是里面那张信纸）：也关闭
+  // 点击 modal 空白处（非 paper）也关闭
   modal.addEventListener("click", (e) => {
-    if (e.target === modal) {
+    if (e.target === modal){
       e.preventDefault();
       closeModal();
     }
   });
 
-  // 键盘 Esc：关闭（电脑上会有用，iPad 可以忽略）
+  // Esc 键关闭（在电脑上有键盘时）
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeModal();
   });
-})();
+
+  // 换一封
+  randomBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!modalState.currentISO) return;
+    modalState.altOffset += 1;
+    fillModalContent(modalState.currentISO, modalState.altOffset);
+  });
+
+  // 复制信件
+  copyBtn?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const text = document.getElementById("letterText")?.textContent || "";
+    if (!text) return;
+    try{
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = "已复制 ✓";
+      setTimeout(() => { copyBtn.textContent = "复制这封信"; }, 1200);
+    }catch(err){
+      console.error(err);
+      copyBtn.textContent = "复制失败…";
+      setTimeout(() => { copyBtn.textContent = "复制这封信"; }, 1200);
+    }
+  });
+}
+
+// 播放本地或预设音频
+function setupAudio(){
+  const player   = document.getElementById("player");
+  const pick     = document.getElementById("pickAudio");
+  const playSlot = document.getElementById("playSlot");
+  const slotSel  = document.getElementById("timeSlot");
+
+  if (!player || !pick || !playSlot || !slotSel) return;
+
+  const preset = {
+    morning: null,
+    day:     null,
+    night:   null,
+  };
+
+  pick.addEventListener("change", () => {
+    const file = pick.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    player.src = url;
+    player.play().catch(()=>{});
+  });
+
+  playSlot.addEventListener("click", () => {
+    const slot = slotSel.value;
+    const src  = preset[slot];
+    if (src){
+      player.src = src;
+    }
+    player.play().catch(()=>{});
+  });
+}
+
+// 录音（本地保存）
+function setupRecorder(){
+  const recStart = document.getElementById("recStart");
+  const recStop  = document.getElementById("recStop");
+  const recDown  = document.getElementById("recDownload");
+  const player   = document.getElementById("player");
+
+  if (!recStart || !recStop || !recDown || !player) return;
+
+  let mediaRecorder = null;
+  let chunks = [];
+
+  async function initMedia(){
+    if (mediaRecorder) return;
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = ev => chunks.push(ev.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        chunks = [];
+        const url = URL.createObjectURL(blob);
+        player.src = url;
+        recDown.href = url;
+        recDown.style.display = "inline-flex";
+      };
+    }catch(err){
+      console.error("无法获取麦克风", err);
+      alert("浏览器不允许录音，记得在设置里打开麦克风权限。");
+    }
+  }
+
+  recStart.addEventListener("click", async () => {
+    await initMedia();
+    if (!mediaRecorder) return;
+    chunks = [];
+    mediaRecorder.start();
+    recStart.disabled = true;
+    recStop.disabled  = false;
+    recStart.textContent = "录音中…";
+  });
+
+  recStop.addEventListener("click", () => {
+    if (!mediaRecorder) return;
+    mediaRecorder.stop();
+    recStart.disabled = false;
+    recStop.disabled  = true;
+    recStart.textContent = "开始录音";
+  });
+}
+
+// 初始化
+function init(){
+  const now = new Date();
+  initSelectors(now);
+  renderCalendar(now);
+  setupModalEvents();
+  renderMiniGallery();
+  setupAudio();
+  setupRecorder();
+
+  // 切换月份
+  const yearSel = document.getElementById("yearSel");
+  const monthSel= document.getElementById("monthSel");
+  const prevBtn = document.getElementById("prevMonth");
+  const nextBtn = document.getElementById("nextMonth");
+  const todayBtn= document.getElementById("todayBtn");
+  const jumpBtn = document.getElementById("jumpBtn");
+  const jumpInp = document.getElementById("jumpInput");
+
+  function updateFromSelectors(){
+    renderCalendar(new Date(Number(yearSel.value), Number(monthSel.value) - 1, 1));
+  }
+
+  yearSel?.addEventListener("change", updateFromSelectors);
+  monthSel?.addEventListener("change", updateFromSelectors);
+
+  prevBtn?.addEventListener("click", () => {
+    let y = Number(yearSel.value);
+    let m = Number(monthSel.value) - 1;
+    if (m <= 0){ m = 12; y -= 1; }
+    yearSel.value  = String(y);
+    monthSel.value = String(m);
+    updateFromSelectors();
+  });
+
+  nextBtn?.addEventListener("click", () => {
+    let y = Number(yearSel.value);
+    let m = Number(monthSel.value) + 1;
+    if (m > 12){ m = 1; y += 1; }
+    yearSel.value  = String(y);
+    monthSel.value = String(m);
+    updateFromSelectors();
+  });
+
+  todayBtn?.addEventListener("click", () => {
+    const t = new Date();
+    yearSel.value  = String(t.getFullYear());
+    monthSel.value = String(t.getMonth() + 1);
+    updateFromSelectors();
+  });
+
+  jumpBtn?.addEventListener("click", () => {
+    const val = (jumpInp?.value || "").trim();
+    if (!val) return;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(val);
+    if (!m){
+      alert("请输入正确的日期格式：YYYY-MM-DD");
+      return;
+    }
+    const y = Number(m[1]);
+    const mo= Number(m[2]);
+    const d = Number(m[3]);
+    const dt = new Date(y, mo - 1, d);
+    if (Number.isNaN(dt.getTime())){
+      alert("这个日期好像不太对…");
+      return;
+    }
+    yearSel.value  = String(y);
+    monthSel.value = String(mo);
+    renderCalendar(dt);
+    openModal(toISO(dt));
+  });
+}
+
+if (document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
