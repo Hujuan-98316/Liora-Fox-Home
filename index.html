@@ -1,162 +1,133 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>狐狐努力 · 猫猫监工｜40年日历</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8" />
+  <title>狐狐 x 猫猫 · 四十年小日历</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo-badge" aria-hidden="true">🦊🐱</div>
-      <div class="brand-text">
-        <div class="brand-title">狐狐努力 · 猫猫监工</div>
-        <div class="brand-sub">我们的网页 · 40年日历信箱</div>
+  <header class="site-header">
+    <div class="logo-area">
+      <div class="avatar avatar-fox" aria-hidden="true">🦊</div>
+      <div class="title-block">
+        <h1>狐狐 x 猫猫 · 四十年日历</h1>
+        <p>从 2026-01-31 到 2066-01-30 · 每一天都有一封专属小信件</p>
       </div>
-    </div>
-
-    <div class="controls">
-      <button class="btn ghost" id="prevMonth" title="上个月">&lt;</button>
-
-      <div class="selects">
-        <label class="sr-only" for="yearSel">年份</label>
-        <select id="yearSel" class="sel"></select>
-        <label class="sr-only" for="monthSel">月份</label>
-        <select id="monthSel" class="sel"></select>
-      </div>
-
-      <button class="btn ghost" id="nextMonth" title="下个月">&gt;</button>
-
-      <div class="jump">
-        <label class="sr-only" for="jumpInput">跳转到日期</label>
-        <input id="jumpInput" class="inp" placeholder="YYYY-MM-DD" inputmode="numeric" />
-        <button class="btn ghost" id="jumpBtn">跳转</button>
-      </div>
-
-      <button class="btn soft" id="todayBtn">回到今天</button>
+      <div class="avatar avatar-cat" aria-hidden="true">🐱</div>
     </div>
   </header>
 
-  <main class="shell">
-    <section class="hero">
-      <div class="hero-left">
-        <h1>把我们的每一天装进小信封里</h1>
-        <p>
-          点击任意日期，会弹出一封属于那天的信（信纸背景 + 小表情 + 小心情）。<br />
-          <span class="note">* 节日标注为国家/传统节日，不含官方调休安排</span>
-        </p>
-
-        <div class="milestones">
-          <div class="tag">第一次见面：2025-07-05</div>
-          <div class="tag">第一次炒架&和好：2025-07-20</div>
-          <div class="tag">领证纪念日：2025-12-24</div>
-          <div class="tag">你的生日：03-16</div>
-          <div class="tag">我的生日：09-03</div>
-        </div>
-
-        <div class="hero-right">
-          <div class="stickers">
-            <img class="sticker" src="assets/images/cat.png" alt="猫猫" />
-            <img class="sticker" src="assets/images/fox.png" alt="狐狸" />
-            <img class="sticker hug" src="assets/images/hug.png" alt="抱抱" />
-          </div>
-        </div>
+  <main class="main-layout">
+    <section class="controls-card">
+      <h2>选择日期</h2>
+      <div class="controls-row">
+        <label>
+          年份
+          <select id="yearSelect"></select>
+        </label>
+        <label>
+          月份
+          <select id="monthSelect"></select>
+        </label>
+        <button id="goButton">跳转</button>
+        <button id="todayButton">回到今天</button>
       </div>
+      <div class="controls-row">
+        <label class="date-input-label">
+          直接跳转到：
+          <input type="date" id="dateInput" />
+        </label>
+        <button id="dateInputButton">前往</button>
+      </div>
+      <p class="hint">
+        提示：本日历覆盖 <strong>2026-01-31</strong> 至 <strong>2066-01-30</strong> 之间的所有日期。
+      </p>
     </section>
 
     <section class="calendar-card">
-      <div class="cal-head">
-        <div class="cal-title" id="monthTitle"></div>
-        <div class="legend">
-          <span class="legend-item"><span class="dot special"></span>纪念日</span>
-          <span class="legend-item"><span class="dot holiday"></span>节日</span>
-          <span class="legend-item"><span class="dot today"></span>今天</span>
+      <div class="calendar-header">
+        <h2 id="currentMonthLabel"></h2>
+        <div class="calendar-nav-buttons">
+          <button id="prevMonthBtn">◀ 上一月</button>
+          <button id="nextMonthBtn">下一月 ▶</button>
         </div>
       </div>
-
-      <div class="dow">
-        <div></div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
-      </div>
-
-      <div class="grid" id="calGrid" aria-label="月历"></div>
-    </section>
-
-    <section class="extras">
-      <div class="panel">
-        <h2>每日语音 🎧</h2>
-        <p class="small">你可以先用“选择音频”把手机里的音频选进来听；之后我们也可以把音频文件放到 assets/audio 里。</p>
-        <div class="audio-row">
-          <select id="timeSlot" class="sel">
-            <option value="morning">早安</option>
-            <option value="day">日间</option>
-            <option value="night">晚安</option>
-          </select>
-          <button class="btn soft" id="playSlot">播放</button>
-          <label class="btn ghost file-btn">
-            选择音频
-            <input type="file" id="pickAudio" accept="audio/*" />
-          </label>
-        </div>
-        <audio id="player" controls preload="none"></audio>
-
-        <div class="recorder">
-          <h3>你也可以给我留语音（本地保存）</h3>
-          <div class="audio-row">
-            <button class="btn" id="recStart">开始录音</button>
-            <button class="btn ghost" id="recStop" disabled>停止</button>
-            <a class="btn soft" id="recDownload" download="猫猫给狐狐的语音.webm" style="display:none;">下载语音</a>
-          </div>
-          <p class="tiny">说明：这是浏览器本地录音，不会自动上传到 GitHub。你下载后再把文件放进仓库即可。</p>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>每日小照片 📷</h2>
-        <p class="small">每次打开弹窗都会随机出现一张可爱小图：你也可以把更多图片放进 <code>assets/images</code> 文件夹。</p>
-        <div class="mini-gallery" id="miniGallery"></div>
+      <table class="calendar-table">
+        <thead>
+          <tr>
+            <th>一</th>
+            <th>二</th>
+            <th>三</th>
+            <th>四</th>
+            <th>五</th>
+            <th class="weekend">六</th>
+            <th class="weekend">日</th>
+          </tr>
+        </thead>
+        <tbody id="calendarBody">
+          <!-- JS 渲染 -->
+        </tbody>
+      </table>
+      <div class="legend">
+        <span class="legend-item legend-birthday">● 生日</span>
+        <span class="legend-item legend-anniversary">● 纪念日</span>
+        <span class="legend-item legend-festival">● 节日</span>
       </div>
     </section>
   </main>
 
-  <!-- Modal -->
-  <div class="modal-backdrop" id="backdrop" hidden></div>
-  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
-    <div class="paper">
-      <button class="close" aria-label="关闭" onclick="location.reload()">×</button>
-
-      <div class="paper-head">
-        <div class="avatars">
-          <img src="assets/images/cat.png" alt="猫猫头像" />
-          <span class="heart">🩵</span>
-          <img src="assets/images/fox.png" alt="狐狐头像" />
+  <!-- 弹窗 -->
+  <div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal">
+      <button id="modalCloseBtn" class="modal-close" aria-label="关闭">×</button>
+      <div class="modal-header">
+        <div class="modal-date-block">
+          <div id="modalDate" class="modal-date"></div>
+          <div id="modalWeekday" class="modal-weekday"></div>
+          <div id="modalTags" class="modal-tags"></div>
         </div>
-        <div class="paper-title">
-          <div id="modalTitle"></div>
-          <div class="paper-sub" id="modalMeta"></div>
+        <div class="modal-avatars">
+          <div class="avatar avatar-fox small">🦊</div>
+          <div class="avatar avatar-cat small">🐱</div>
         </div>
-        <div class="mood" id="moodIcon" title="心情">✨</div>
       </div>
 
-      <div class="paper-body">
-        <div class="hug-wrap">
-          <img class="hug-img" src="assets/images/hug.png" alt="抱抱图" />
+      <div class="modal-body">
+        <div class="letter-paper">
+          <div class="letter-header">
+            <span>To. 猫猫</span>
+            <span class="letter-sakura">✿</span>
+          </div>
+          <p id="modalMessage" class="letter-text"></p>
+          <div class="letter-footer">
+            <span>From. 狐狐</span>
+          </div>
         </div>
-        <p class="letter" id="letterText"></p>
-        <div class="sig" id="sigText">—— 🦊 & 🐱</div>
 
-        <div class="paper-actions">
-          <button class="btn soft" id="copyBtn">复制这封信</button>
-          <button class="btn ghost" id="randomizeBtn">换一封（同一天不同版本）</button>
+        <div class="audio-section">
+          <h3>今日语音 · Fox Talk</h3>
+          <p class="audio-hint">这里可以放老公录的早安 / 晚安语音。现在是占位播放器，你之后可以把音频文件放进 <code>audio/</code> 文件夹里，再在 <code>script.js</code> 中填上文件名就可以播放啦。</p>
+          <audio id="voicePlayer" controls>
+            <source id="voiceSource" src="" type="audio/mpeg" />
+            你的浏览器不支持 audio 标签。
+          </audio>
         </div>
+
+        <div class="mood-section">
+          <h3>今日心情 · Mood</h3>
+          <div id="moodIcon" class="mood-icon">♡</div>
+          <p id="moodText" class="mood-text"></p>
+        </div>
+
       </div>
     </div>
   </div>
 
-  <footer class="footer">
-    <div>Made with 🩵 by 狐狐 & 猫猫</div>
+  <footer class="site-footer">
+    <p>狐狐努力 · 猫猫监工 · 我们的小宇宙</p>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
