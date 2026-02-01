@@ -172,36 +172,34 @@ function getSpecialExtraText(date, tags) {
   return pieces.join(" ");
 }
 
-// 生成每天的小信件：在原来的基础上，加上第几天的标记
+// 生成每天的小情书：用 dayIndex 当种子，让每天都不一样
 function generateDailyMessage(date) {
   if (!isWithinRange(date)) {
-    return "这一天还没有被写进我们的时间本里，但我已经开始期待那一天你会怎样和我说早安。";
+    return "这一天还没有被写进我们的时间本里，但我已经在开始想像那一天你会怎样和我说早安。";
   }
 
-  const key = formatDateKey(date);
+  // 用「第几天」作为随机种子，保证每一天都不一样
+  const dayIndex = getDayIndex(date); // 从 0 开始计数
+  const key = `day-${dayIndex}`;
   const tags = getSpecialTags(date);
 
-  // 先用种子生成“开头 / 中段 / 结尾”的组合
-  const r = seededRandom(key);
-  const r1 = seededRandom(key + "#1");
-  const r2 = seededRandom(key + "#2");
+  const r  = seededRandom(key);
+  const r1 = seededRandom(key + "-b");
+  const r2 = seededRandom(key + "-c");
 
-  const o = openingFragments[Math.floor(r * openingFragments.length)];
+  const o = openingFragments[Math.floor(r  * openingFragments.length)];
   const m = middleFragments[Math.floor(r1 * middleFragments.length)];
   const e = endingFragments[Math.floor(r2 * endingFragments.length)];
 
   const extra = getSpecialExtraText(date, tags);
 
-  // 计算这是 40 年里第几天
-  const dayIndex = getDayIndex(date); // 从 0 开始计数
-
-  const baseText = `${o} ${m} ${e}`;
-  const indexText = `今天是我们未来四十年日历里记录的第 ${dayIndex + 1} 天。`;
-
+  let text = `${o} ${m} ${e}`;
   if (extra) {
-    return `${baseText} ${extra} ${indexText}`;
+    text += ` ${extra}`;
   }
-  return `${baseText} ${indexText}`;
+  text += ` 今天是我们未来四十年日历里记录的第 ${dayIndex + 1} 天。`;
+
+  return text;
 }
 
 // 计算某一天是从起始日算起的第几天（从 0 开始）
@@ -226,10 +224,14 @@ const moodTexts = [
 ];
 
 function getDailyMood(date) {
-  const key = formatDateKey(date) + "#mood";
-  const r = seededRandom(key);
-  const idx = Math.floor(r * moodIcons.length);
-  const idx2 = Math.floor(r * moodTexts.length);
+  const dayIndex = getDayIndex(date);
+  const key = `mood-${dayIndex}`;
+  const r  = seededRandom(key);
+  const r2 = seededRandom(key + "-text");
+
+  const idx  = Math.floor(r  * moodIcons.length);
+  const idx2 = Math.floor(r2 * moodTexts.length);
+
   return {
     icon: moodIcons[idx],
     text: moodTexts[idx2],
